@@ -1,0 +1,58 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Il repo contiene solo i file scritti a mano (Dart, Kotlin, manifest):
+      # flutter create rigenera quelli mancanti (Gradle, wrapper, icone, temi)
+      # senza toccare quelli esistenti.
+      - name: Genera i file di piattaforma mancanti
+        run: flutter create --platforms=android --org it.lucapaganin --project-name bt_debugger .
+
+      - run: flutter pub get
+
+      - name: Analisi statica
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test
+        run: flutter test
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Rinomina APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk bt-debugger-${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bt-debugger-apk
+          path: bt-debugger-${{ github.run_number }}.apk
+
+      - name: Pubblica in Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: BT Debugger build ${{ github.run_number }}
+          body: APK compilato da ${{ github.sha }}. Scaricalo dal telefono e installalo (consenti "app da origini sconosciute").
+          files: bt-debugger-${{ github.run_number }}.apk
