@@ -78,6 +78,8 @@ class MainActivity : FlutterActivity() {
                 call.argument<String>("uuid")!!,
                 call.argument<Boolean>("secure") ?: true,
             ) { result.success(it) }
+            "probe" -> BtBridge.probe(call.argument<String>("address")!!) { result.success(it) }
+            "gattTest" -> BtBridge.gattTest(call.argument<String>("address")!!) { result.success(it) }
             "startDiscovery" -> result.success(BtBridge.startDiscovery())
             "cancelDiscovery" -> result.success(BtBridge.cancelDiscovery())
             "startMonitor" -> {

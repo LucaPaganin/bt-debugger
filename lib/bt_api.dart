@@ -110,6 +110,16 @@ class BtApi {
     return (r ?? {}).map((k, v) => MapEntry('$k', v));
   }
 
+  static Future<Map<String, dynamic>> probe(String address) async {
+    final r = await _m.invokeMethod<Map>('probe', {'address': address});
+    return (r ?? {}).map((k, v) => MapEntry('$k', v));
+  }
+
+  static Future<Map<String, dynamic>> gattTest(String address) async {
+    final r = await _m.invokeMethod<Map>('gattTest', {'address': address});
+    return (r ?? {}).map((k, v) => MapEntry('$k', v));
+  }
+
   static Future<bool> startDiscovery() async => await _m.invokeMethod<bool>('startDiscovery') ?? false;
   static Future<bool> cancelDiscovery() async => await _m.invokeMethod<bool>('cancelDiscovery') ?? false;
 

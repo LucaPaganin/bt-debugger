@@ -168,5 +168,10 @@ SessionAnalysis analyzeSession(List<BtEvent> all, String target, {DateTime? sinc
     findings.add(Finding(Severity.warn, 'Test RFCOMM falliti: ${rfKo.length}', rfKo.last.summary));
   }
 
+  final probeKo = mine.where((e) => e.action == 'PROBE_FAIL').toList();
+  if (probeKo.isNotEmpty) {
+    findings.add(Finding(Severity.warn, 'Ping non riuscito: ${probeKo.length}', probeKo.last.summary));
+  }
+
   return SessionAnalysis(findings, sessions, mine);
 }
