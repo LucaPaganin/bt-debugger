@@ -3,15 +3,26 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'bt_api.dart';
+import 'discovery.dart';
 
-/// Stato condiviso dell'app: log eventi, dispositivo monitorato, scansione.
+/// Stato condiviso dell'app: log eventi, dispositivo monitorato, discovery.
 class AppState extends ChangeNotifier {
   AppState._();
   static final AppState instance = AppState._();
 
   final List<BtEvent> events = [];
-  final Map<String, BtEvent> scanResults = {};
-  bool scanning = false;
+  /// Discovery: dispositivi visti (per indirizzo) e dispositivi "miei" con nickname.
+  final Map<String, DiscoveredDevice> discovered = {};
+  List<KnownDevice> known = [];
+  bool classicScanning = false;
+  bool leScanning = false;
+  String? scanError;
+  Timer? _leTimer;
+
+  /// Durata della scansione BLE: oltre consuma batteria e Android limita i riavvii.
+  static const leScanDuration = Duration(seconds: 60);
+
+  bool get scanning => classicScanning || leScanning;
   bool monitorRunning = false;
   String? targetAddress;
   String? targetName;
@@ -29,6 +40,9 @@ class AppState extends ChangeNotifier {
     targetAddress = t.address;
     targetName = t.name;
     monitorRunning = await BtApi.isMonitorRunning();
+    try {
+      known = decodeKnown(await BtApi.getKnownDevices());
+    } catch (_) {}
     _sub ??= BtApi.events().listen(_onEvent);
     notifyListeners();
   }
@@ -57,9 +71,22 @@ class AppState extends ChangeNotifier {
 
   void _onEvent(BtEvent e) {
     if (e.cat == 'scan') {
-      if (e.action == 'DISCOVERY_STARTED') scanning = true;
-      if (e.action == 'DISCOVERY_FINISHED') scanning = false;
-      if (e.action == 'FOUND' && e.address != null) scanResults[e.address!] = e;
+      switch (e.action) {
+        case 'DISCOVERY_STARTED':
+          classicScanning = true;
+        case 'DISCOVERY_FINISHED':
+          classicScanning = false;
+        case 'LE_SCAN_STARTED':
+          leScanning = true;
+        case 'LE_SCAN_STOPPED':
+          leScanning = false;
+        case 'LE_SCAN_FAILED':
+          leScanning = false;
+          scanError = e.summary;
+        case 'FOUND' || 'LE_FOUND':
+          final a = e.address;
+          if (a != null) discovered.putIfAbsent(a, () => DiscoveredDevice(a, e.ts)).update(e);
+      }
       notifyListeners();
       return;
     }
@@ -95,15 +122,51 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startScan() async {
-    scanResults.clear();
-    scanning = await BtApi.startDiscovery();
+  /// Avvia la discovery: Classic (inquiry ~12 s) e/o BLE (advertising, [leScanDuration]).
+  Future<void> startScan({bool classic = true, bool le = true}) async {
+    discovered.clear();
+    scanError = null;
+    if (classic) classicScanning = await BtApi.startDiscovery();
+    if (le) {
+      leScanning = await BtApi.startLeScan();
+      _leTimer?.cancel();
+      if (leScanning) _leTimer = Timer(leScanDuration, () => BtApi.stopLeScan());
+    }
+    if (!scanning) scanError ??= 'Scansione non avviata: Bluetooth spento o permessi mancanti.';
     notifyListeners();
   }
 
   Future<void> stopScan() async {
+    _leTimer?.cancel();
     await BtApi.cancelDiscovery();
-    scanning = false;
+    await BtApi.stopLeScan();
+    classicScanning = false;
+    leScanning = false;
     notifyListeners();
+  }
+
+  Future<void> _saveKnown() async {
+    notifyListeners();
+    await BtApi.saveKnownDevices(encodeKnown(known));
+  }
+
+  /// Assegna o cambia il nickname; [byName] riconosce il dispositivo dal nome invece che dal MAC.
+  Future<void> setNickname(DiscoveredDevice d, String nickname, {bool byName = false}) async {
+    final old = knownFor(d, known);
+    known = [
+      for (final k in known)
+        if (!identical(k, old)) k,
+      KnownDevice(
+        nickname: nickname,
+        address: byName ? null : d.address,
+        matchName: byName ? d.name : null,
+      ),
+    ];
+    await _saveKnown();
+  }
+
+  Future<void> removeKnown(KnownDevice k) async {
+    known = [for (final x in known) if (!identical(x, k)) x];
+    await _saveKnown();
   }
 }

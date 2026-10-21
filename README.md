@@ -8,7 +8,7 @@ App Flutter (solo Android) per diagnosticare connessioni **Bluetooth Classic**: 
 - **Dettaglio dispositivo** — rilettura SDP, *test RFCOMM* (il telefono chiama il dispositivo e apre un canale, in modalità sicura o no: distingue un problema di link key da un problema di chi avvia la riconnessione), cronologia eventi del dispositivo.
 - **Monitor** — registra tutti i broadcast Bluetooth (ACL, bond con motivo, richieste di pairing con variante legacy/SSP, cambi di stato HFP/A2DP/PBAP/MAP, codec, key missing…) con tutti gli extra, anche quelli non documentati. Un foreground service continua a registrare con l'app chiusa. I *segnaposti* marcano i momenti (es. "Accendo l'auto").
 - **Diagnosi** — analisi a regole della sessione a partire da un segnaposto: nessun tentativo di connessione, link chiuso subito, link senza profili, solo HFP, bond perso, ecc. Include la procedura di test e la guida all'HCI snoop log.
-- **Scansione** — discovery Classic con RSSI e Class of Device.
+- **Discovery** — chi c'è nei dintorni, in Classic (inquiry) e BLE (advertising, 60 s), senza connettersi. Separa *i miei* (dispositivi a cui dai un nickname, riconosciuti per MAC o per nome se il MAC ruota), *accoppiati* e *sconosciuti*. Per ognuno: RSSI, tipo di MAC (fisso, random statico, random che ruota), produttore, servizi e un'ipotesi su cosa sia (tracker Google/Apple/Samsung/Tile, Fast Pair, iBeacon…). I nickname restano salvati sul telefono.
 - **Export** — log + analisi in `Download/`, condivisione o copia.
 
 ## Limiti (di Android, non dell'app)
@@ -39,13 +39,15 @@ lib/
   analysis.dart        analisi a regole delle sessioni
   bt_labels.dart       tabelle UUID e Class of Device
   export.dart          testo del log esportato
-  screens/             dispositivi, dettaglio, monitor, diagnosi, scansione
+  discovery.dart       discovery: aggregazione Classic+BLE, nickname, tipo MAC, riconoscimento
+  screens/             dispositivi, dettaglio, monitor, diagnosi, discovery
 android/app/src/main/kotlin/it/lucapaganin/bt_debugger/
   MainActivity.kt      MethodChannel/EventChannel, permessi, export
   BtBridge.kt          interrogazioni allo stack (adapter, device, SDP, RFCOMM)
   BtRecorder.kt        BroadcastReceiver → eventi leggibili
   EventStore.kt        registro eventi in memoria + file JSONL
   BtMonitorService.kt  foreground service per registrare in background
+  BleScanner.kt        scansione BLE passiva (advertising)
   BtNames.kt           codici numerici → nomi
 ```
 

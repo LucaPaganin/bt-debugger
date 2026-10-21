@@ -56,6 +56,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        BleScanner.stop()
         eventListener?.let { EventStore.removeListener(it) }
         eventListener = null
         if (recorderAcquired) {
@@ -82,6 +83,14 @@ class MainActivity : FlutterActivity() {
             "gattTest" -> BtBridge.gattTest(call.argument<String>("address")!!) { result.success(it) }
             "startDiscovery" -> result.success(BtBridge.startDiscovery())
             "cancelDiscovery" -> result.success(BtBridge.cancelDiscovery())
+            "startLeScan" -> result.success(BleScanner.start())
+            "stopLeScan" -> result.success(BleScanner.stop())
+            "isLeScanning" -> result.success(BleScanner.running)
+            "getKnownDevices" -> result.success(BtBridge.getKnownDevices())
+            "saveKnownDevices" -> {
+                BtBridge.saveKnownDevices(call.argument<String>("json") ?: "[]")
+                result.success(true)
+            }
             "startMonitor" -> {
                 BtMonitorService.start(this)
                 result.success(true)

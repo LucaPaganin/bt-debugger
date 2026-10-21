@@ -4,7 +4,7 @@ import 'app_state.dart';
 import 'screens/devices_screen.dart';
 import 'screens/diagnosis_screen.dart';
 import 'screens/monitor_screen.dart';
-import 'screens/scan_screen.dart';
+import 'screens/discovery_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +65,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return Scaffold(
       body: IndexedStack(
         index: _tab,
-        children: const [DevicesScreen(), MonitorScreen(), DiagnosisScreen(), ScanScreen()],
+        children: const [DevicesScreen(), MonitorScreen(), DiagnosisScreen(), DiscoveryScreen()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
@@ -74,7 +74,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           NavigationDestination(icon: Icon(Icons.devices), label: 'Dispositivi'),
           NavigationDestination(icon: Icon(Icons.timeline), label: 'Monitor'),
           NavigationDestination(icon: Icon(Icons.medical_services_outlined), label: 'Diagnosi'),
-          NavigationDestination(icon: Icon(Icons.radar), label: 'Scansione'),
+          NavigationDestination(icon: Icon(Icons.radar), label: 'Discovery'),
         ],
       ),
     );

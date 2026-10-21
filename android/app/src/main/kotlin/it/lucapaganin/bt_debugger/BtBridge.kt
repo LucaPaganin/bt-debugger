@@ -410,4 +410,12 @@ object BtBridge {
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return mapOf("address" to p.getString("target_address", null), "name" to p.getString("target_name", null))
     }
+
+    /** Dispositivi "miei" con nickname: JSON gestito da Flutter, qui solo persistito. */
+    fun getKnownDevices(): String =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("known_devices", "[]") ?: "[]"
+
+    fun saveKnownDevices(json: String) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("known_devices", json).apply()
+    }
 }

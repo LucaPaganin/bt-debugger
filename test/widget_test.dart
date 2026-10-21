@@ -7,6 +7,6 @@ void main() {
     await tester.pump();
     expect(find.text('Monitor'), findsWidgets);
     expect(find.text('Diagnosi'), findsWidgets);
-    expect(find.text('Scansione'), findsWidgets);
+    expect(find.text('Discovery'), findsWidgets);
   });
 }

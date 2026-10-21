@@ -123,6 +123,12 @@ class BtApi {
   static Future<bool> startDiscovery() async => await _m.invokeMethod<bool>('startDiscovery') ?? false;
   static Future<bool> cancelDiscovery() async => await _m.invokeMethod<bool>('cancelDiscovery') ?? false;
 
+  static Future<bool> startLeScan() async => await _m.invokeMethod<bool>('startLeScan') ?? false;
+  static Future<bool> stopLeScan() async => await _m.invokeMethod<bool>('stopLeScan') ?? false;
+
+  static Future<String> getKnownDevices() async => await _m.invokeMethod<String>('getKnownDevices') ?? '[]';
+  static Future<void> saveKnownDevices(String json) => _m.invokeMethod('saveKnownDevices', {'json': json});
+
   static Future<void> startMonitor() => _m.invokeMethod('startMonitor');
   static Future<void> stopMonitor() => _m.invokeMethod('stopMonitor');
   static Future<bool> isMonitorRunning() async => await _m.invokeMethod<bool>('isMonitorRunning') ?? false;
