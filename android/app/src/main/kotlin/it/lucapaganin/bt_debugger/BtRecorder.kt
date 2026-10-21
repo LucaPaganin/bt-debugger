@@ -38,6 +38,11 @@ object BtRecorder {
     private const val BATTERY_LEVEL = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED"
     private const val EXTRA_REASON = "android.bluetooth.device.extra.REASON"
     private const val EXTRA_TRANSPORT = "android.bluetooth.device.extra.TRANSPORT"
+    // Extra proprietari Samsung (One UI): motivo HCI della disconnessione e funzioni HFP del remoto.
+    private const val SEC_DISC_REASON = "com.samsung.bluetooth.device.extra.DISCONNECTION_REASON"
+    private const val SEC_HF_FEATURES = "com.samsung.bt.hfp.intent.extra.HF_SUPPORTED_FEATURE"
+    private const val HFP_DISC_REASON = "android.bluetooth.headset.extra.DISCONNECTED_REASON"
+    private const val A2DP_DISC_REASON = "android.bluetooth.a2dp.extra.DISCONNECTED_REASON"
 
     private val actions = listOf(
         BluetoothAdapter.ACTION_STATE_CHANGED,
@@ -152,11 +157,18 @@ object BtRecorder {
             }
             BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                 val tr = if (has(EXTRA_TRANSPORT)) " via ${BtNames.transport(int(EXTRA_TRANSPORT))}" else ""
-                val reason = if (has(EXTRA_REASON)) {
-                    val r = int(EXTRA_REASON)
-                    val hci = BtNames.hciError(r)
-                    " — reason=$r" + (if (hci != null) " (se codice HCI: $hci)" else "")
-                } else ""
+                val reason = when {
+                    has(SEC_DISC_REASON) -> {
+                        val r = int(SEC_DISC_REASON)
+                        " — motivo HCI 0x%02X %s".format(r, BtNames.hciError(r) ?: "")
+                    }
+                    has(EXTRA_REASON) -> {
+                        val r = int(EXTRA_REASON)
+                        val hci = BtNames.hciError(r)
+                        " — reason=$r" + (if (hci != null) " (se codice HCI: $hci)" else "")
+                    }
+                    else -> ""
+                }
                 EventStore.emit("acl", short, "Link ACL CHIUSO$tr$reason", address, name, extras)
             }
             BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED -> EventStore.emit(
@@ -189,19 +201,26 @@ object BtRecorder {
             BluetoothDevice.ACTION_NAME_CHANGED -> EventStore.emit("device", short, "Nome remoto: ${intent.getStringExtra(BluetoothDevice.EXTRA_NAME)}", address, name, extras)
             BluetoothDevice.ACTION_CLASS_CHANGED -> EventStore.emit("device", short, "Class of Device aggiornata", address, name, extras)
 
-            BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> EventStore.emit(
-                "a2dp", short,
-                "A2DP (audio): ${BtNames.connState(int(BluetoothA2dp.EXTRA_PREVIOUS_STATE))} → ${BtNames.connState(int(BluetoothA2dp.EXTRA_STATE))}",
-                address, name, extras,
-            )
+            BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED -> {
+                val why = if (has(A2DP_DISC_REASON) && int(A2DP_DISC_REASON) != 0) " (motivo ${int(A2DP_DISC_REASON)})" else ""
+                EventStore.emit(
+                    "a2dp", short,
+                    "A2DP (audio): ${BtNames.connState(int(BluetoothA2dp.EXTRA_PREVIOUS_STATE))} → ${BtNames.connState(int(BluetoothA2dp.EXTRA_STATE))}$why",
+                    address, name, extras,
+                )
+            }
             BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED -> EventStore.emit(
                 "a2dp", short, "A2DP streaming: ${BtNames.a2dpPlaying(int(BluetoothA2dp.EXTRA_STATE))}", address, name, extras,
             )
-            BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED -> EventStore.emit(
-                "hfp", short,
-                "HFP (vivavoce): ${BtNames.connState(int(BluetoothHeadset.EXTRA_PREVIOUS_STATE))} → ${BtNames.connState(int(BluetoothHeadset.EXTRA_STATE))}",
-                address, name, extras,
-            )
+            BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED -> {
+                val why = if (has(HFP_DISC_REASON) && int(HFP_DISC_REASON) != 0) " (motivo ${int(HFP_DISC_REASON)})" else ""
+                val feat = if (has(SEC_HF_FEATURES)) " · " + BtNames.hfFeatures(int(SEC_HF_FEATURES)) else ""
+                EventStore.emit(
+                    "hfp", short,
+                    "HFP (vivavoce): ${BtNames.connState(int(BluetoothHeadset.EXTRA_PREVIOUS_STATE))} → ${BtNames.connState(int(BluetoothHeadset.EXTRA_STATE))}$why$feat",
+                    address, name, extras,
+                )
+            }
             BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED -> EventStore.emit(
                 "hfp", short, "HFP audio (SCO): ${BtNames.headsetAudio(int(BluetoothHeadset.EXTRA_STATE))}", address, name, extras,
             )
@@ -219,7 +238,20 @@ object BtRecorder {
                 address, name, extras,
             )
             KEY_MISSING -> EventStore.emit("security", short, "Il remoto non ha più la link key (KEY MISSING)", address, name, extras)
-            ENCRYPTION_CHANGE -> EventStore.emit("security", short, "Cambio stato cifratura del link", address, name, extras)
+            ENCRYPTION_CHANGE -> {
+                val on = intent.getBooleanExtra("android.bluetooth.device.extra.ENCRYPTION_ENABLED", false)
+                val size = int("android.bluetooth.device.extra.KEY_SIZE")
+                val alg = when (int("android.bluetooth.device.extra.EXTRA_ENCRYPTION_ALGORITHM")) {
+                    1 -> "E0 (legacy, senza Secure Connections)"
+                    2 -> "AES-CCM (Secure Connections)"
+                    else -> "algoritmo ?"
+                }
+                EventStore.emit(
+                    "security", short,
+                    if (on) "Cifratura ATTIVA: chiave ${size} byte, $alg" else "Cifratura DISATTIVATA",
+                    address, name, extras,
+                )
+            }
             ACCESS_REQUEST, ACCESS_REPLY, ACCESS_CANCEL -> EventStore.emit(
                 "security", short, "Richiesta accesso profilo (rubrica/messaggi/SIM): $short", address, name, extras,
             )

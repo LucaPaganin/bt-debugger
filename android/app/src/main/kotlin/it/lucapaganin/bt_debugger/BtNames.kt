@@ -112,4 +112,21 @@ object BtNames {
         0x3D -> "Connection Terminated due to MIC Failure"
         else -> null
     }
+
+    /** Bitmask AT+BRSF del lato vivavoce (HFP spec, "HF Supported Features"). */
+    fun hfFeatures(f: Int): String {
+        val names = listOf(
+            "EC/NR", "chiamata a 3", "ID chiamante", "comando vocale", "volume remoto",
+            "stato chiamata esteso", "controllo chiamata esteso", "negoziazione codec (banda larga)",
+            "indicatori HF", "eSCO S4", "stato comando vocale esteso", "testo comando vocale",
+        )
+        val on = names.filterIndexed { i, _ -> f and (1 shl i) != 0 }
+        val ver = when {
+            f and (0b11 shl 10) != 0 -> "HFP ≥ 1.8"
+            f and (0b11 shl 8) != 0 -> "HFP ≥ 1.7"
+            f and (1 shl 7) != 0 -> "HFP ≥ 1.6"
+            else -> "nessuna funzione oltre HFP 1.5 (niente banda larga)"
+        }
+        return "funzioni HF 0x%X: $ver [${on.joinToString(", ")}]".format(f)
+    }
 }

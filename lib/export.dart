@@ -26,7 +26,9 @@ Future<String> buildExport() async {
   for (final e in app.events) {
     b.writeln('${fmtDate(e.ts)}  [${e.cat}] ${e.summary}${e.who.isEmpty ? '' : '  <${e.who}${e.address != null && e.name != null ? ' ${e.address}' : ''}>'}');
     if (e.extras.isNotEmpty) {
-      b.writeln('    ${e.extras.entries.map((x) => '${x.key}=${x.value}').join('  ')}');
+      // Gli extra lunghi (es. lo stato codec A2DP) gonfiano il log: li accorcio.
+      String short(String v) => v.length > 160 ? '${v.substring(0, 160)}…' : v;
+      b.writeln('    ${e.extras.entries.map((x) => '${x.key}=${short(x.value)}').join('  ')}');
     }
   }
   return b.toString();
