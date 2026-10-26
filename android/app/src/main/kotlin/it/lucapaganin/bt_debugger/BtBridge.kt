@@ -22,6 +22,9 @@ object BtBridge {
     private var a2dp: BluetoothA2dp? = null
     private var headset: BluetoothHeadset? = null
     private var proxiesRequested = false
+
+    val a2dpProxy: BluetoothA2dp? get() = a2dp
+    val headsetProxy: BluetoothHeadset? get() = headset
     private val main = Handler(Looper.getMainLooper())
 
     fun init(context: Context) {

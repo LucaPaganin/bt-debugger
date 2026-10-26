@@ -22,6 +22,7 @@ IconData catIcon(String cat) => switch (cat) {
       'device' => Icons.devices_other,
       'note' => Icons.flag,
       'app' => Icons.build_circle_outlined,
+      'auto' => Icons.autorenew,
       _ => Icons.circle_outlined,
     };
 
@@ -34,6 +35,7 @@ Color catColor(String cat, ColorScheme cs) => switch (cat) {
       'sdp' => Colors.indigo,
       'note' => Colors.amber.shade800,
       'app' => cs.outline,
+      'auto' => Colors.green.shade700,
       _ => cs.onSurfaceVariant,
     };
 

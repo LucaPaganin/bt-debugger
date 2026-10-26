@@ -67,6 +67,60 @@ class _MonitorScreenState extends State<MonitorScreen> {
     if (text != null && text.trim().isNotEmpty) await BtApi.addNote(text.trim());
   }
 
+  String _hm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Widget _autoCard(BuildContext context, AppState app) {
+    final a = app.auto;
+    final muted = TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final String status;
+    if (!a.enabled) {
+      status = 'Spenta.';
+    } else if (app.targetAddress == null) {
+      status = 'Scegli prima il dispositivo da monitorare in Dispositivi.';
+    } else if (a.windowActive) {
+      status = 'In corso (${a.windowReason}) fino alle ${_hm(a.windowUntil!)} · tentativi: ${a.attempts}';
+    } else {
+      status = 'In attesa: parte quando perdi il Wi-Fi, metti in carica o la radio si fa viva.';
+    }
+    return Card(
+      margin: const EdgeInsets.all(12),
+      color: a.windowActive ? Colors.green.withValues(alpha: 0.12) : null,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.autorenew, color: a.enabled ? Colors.green.shade700 : null),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Riconnessione automatica', style: Theme.of(context).textTheme.titleMedium)),
+            Switch(value: a.enabled, onChanged: (_) => app.toggleAuto()),
+          ]),
+          const SizedBox(height: 4),
+          Text(status),
+          if (a.lastResult != null) ...[
+            const SizedBox(height: 4),
+            Text('Ultimo esito: ${a.lastResult}', style: muted),
+          ],
+          if (a.systemConnect == false) ...[
+            const SizedBox(height: 4),
+            Text('Android nega la connessione diretta dei profili: uso il socket RFCOMM.', style: muted),
+          ],
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, children: [
+            OutlinedButton.icon(
+              onPressed: app.targetAddress == null ? null : app.autoConnectNow,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Prova ora'),
+            ),
+            TextButton(
+              onPressed: () => BtApi.openSettings('battery'),
+              child: const Text('Batteria: senza restrizioni'),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = AppState.instance;
@@ -96,13 +150,14 @@ class _MonitorScreenState extends State<MonitorScreen> {
         builder: (context, _) {
           var list = app.events.reversed.toList();
           if (_onlyTarget && app.targetAddress != null) {
-            list = list.where((e) => e.address == app.targetAddress || e.cat == 'note' || e.cat == 'adapter' || e.action.startsWith('MONITOR')).toList();
+            list = list.where((e) => e.address == app.targetAddress || e.cat == 'note' || e.cat == 'adapter' || e.cat == 'auto' || e.action.startsWith('MONITOR')).toList();
           }
           if (_hideApp) list = list.where((e) => e.cat != 'app').toList();
           return Column(
             children: [
+              _autoCard(context, app),
               Card(
-                margin: const EdgeInsets.all(12),
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 color: app.monitorRunning ? Colors.green.withValues(alpha: 0.12) : null,
                 child: Padding(
                   padding: const EdgeInsets.all(12),

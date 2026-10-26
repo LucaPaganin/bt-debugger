@@ -69,6 +69,47 @@ class BtDevice {
   bool? get hfpAudio => raw['hfpAudio'] as bool?;
 }
 
+/// Stato della riconnessione automatica (lato Kotlin: AutoConnect).
+class AutoStatus {
+  final bool enabled;
+  final bool serviceRunning;
+  final DateTime? windowUntil;
+  final String? windowReason;
+  final int attempts;
+  final String? lastResult;
+  final String? target;
+
+  /// null = non ancora provato, false = connect() di sistema negato da Android.
+  final bool? systemConnect;
+
+  const AutoStatus({
+    this.enabled = false,
+    this.serviceRunning = false,
+    this.windowUntil,
+    this.windowReason,
+    this.attempts = 0,
+    this.lastResult,
+    this.target,
+    this.systemConnect,
+  });
+
+  factory AutoStatus.fromMap(Map<dynamic, dynamic> m) {
+    final until = (m['windowUntil'] as num?)?.toInt();
+    return AutoStatus(
+      enabled: m['enabled'] == true,
+      serviceRunning: m['serviceRunning'] == true,
+      windowUntil: until == null ? null : DateTime.fromMillisecondsSinceEpoch(until),
+      windowReason: m['windowReason'] as String?,
+      attempts: (m['attempts'] as num?)?.toInt() ?? 0,
+      lastResult: m['lastResult'] as String?,
+      target: m['target'] as String?,
+      systemConnect: m['systemConnect'] as bool?,
+    );
+  }
+
+  bool get windowActive => windowUntil != null && windowUntil!.isAfter(DateTime.now());
+}
+
 /// Wrapper dei canali verso il codice Kotlin.
 class BtApi {
   static const _m = MethodChannel('bt_debugger/methods');
@@ -132,6 +173,12 @@ class BtApi {
   static Future<void> startMonitor() => _m.invokeMethod('startMonitor');
   static Future<void> stopMonitor() => _m.invokeMethod('stopMonitor');
   static Future<bool> isMonitorRunning() async => await _m.invokeMethod<bool>('isMonitorRunning') ?? false;
+
+  static Future<AutoStatus> getAutoConnect() async =>
+      AutoStatus.fromMap(await _m.invokeMethod<Map>('getAutoConnect') ?? {});
+  static Future<AutoStatus> setAutoConnect(bool enabled) async =>
+      AutoStatus.fromMap(await _m.invokeMethod<Map>('setAutoConnect', {'enabled': enabled}) ?? {});
+  static Future<void> autoConnectNow() => _m.invokeMethod('autoConnectNow');
 
   static Future<List<BtEvent>> getEvents() async {
     final r = await _m.invokeMethod<List>('getEvents');

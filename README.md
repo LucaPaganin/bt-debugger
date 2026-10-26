@@ -9,6 +9,7 @@ App Flutter (solo Android) per diagnosticare connessioni **Bluetooth Classic**: 
 - **Monitor** — registra tutti i broadcast Bluetooth (ACL, bond con motivo, richieste di pairing con variante legacy/SSP, cambi di stato HFP/A2DP/PBAP/MAP, codec, key missing…) con tutti gli extra, anche quelli non documentati. Un foreground service continua a registrare con l'app chiusa. I *segnaposti* marcano i momenti (es. "Accendo l'auto").
 - **Diagnosi** — analisi a regole della sessione a partire da un segnaposto: nessun tentativo di connessione, link chiuso subito, link senza profili, solo HFP, bond perso, ecc. Include la procedura di test e la guida all'HCI snoop log.
 - **Discovery** — chi c'è nei dintorni, in Classic (inquiry) e BLE (advertising, 60 s), senza connettersi. Separa *i miei* (dispositivi a cui dai un nickname, riconosciuti per MAC o per nome se il MAC ruota), *accoppiati* e *sconosciuti*. Per ognuno: RSSI, tipo di MAC (fisso, random statico, random che ruota), produttore, servizi e un'ipotesi su cosa sia (tracker Google/Apple/Samsung/Tile, Fast Pair, iBeacon…). I nickname restano salvati sul telefono.
+- **Riconnessione automatica** (scheda Monitor) — servizio sempre attivo che fa partire la connessione dal telefono, il caso che con l'Alpine funziona. Si apre una finestra di tentativi (uno ogni 30 s, si ferma appena HFP o A2DP sono connessi) quando: perdi il Wi-Fi (20 min, copre il tragitto fino all'auto), metti in carica (10 min), la radio apre un link da sola o riaccendi il Bluetooth (3 min), oppure premi *Prova ora*. Prima prova `connect()` dei profili come le Impostazioni (API di sistema, Android può negarla), poi un socket RFCOMM sicuro verso il vivavoce che forza page + autenticazione. Ogni passo finisce nel log con categoria `AUTO`. Serve batteria "senza restrizioni".
 - **Export** — log + analisi in `Download/`, condivisione o copia.
 
 ## Limiti (di Android, non dell'app)
@@ -47,6 +48,9 @@ android/app/src/main/kotlin/it/lucapaganin/bt_debugger/
   BtRecorder.kt        BroadcastReceiver → eventi leggibili
   EventStore.kt        registro eventi in memoria + file JSONL
   BtMonitorService.kt  foreground service per registrare in background
+  AutoConnect.kt       logica della riconnessione avviata dal telefono (finestre, tentativi)
+  AutoConnectService.kt foreground service con i trigger (Wi-Fi, carica, radio, Bluetooth)
+  BootReceiver.kt      riavvia la riconnessione automatica dopo boot/aggiornamento
   BleScanner.kt        scansione BLE passiva (advertising)
   BtNames.kt           codici numerici → nomi
 ```

@@ -25,6 +25,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         EventStore.init(this)
         BtBridge.init(this)
+        AutoConnect.init(this)
         if (!recorderAcquired) {
             BtRecorder.acquire(this)
             recorderAcquired = true
@@ -100,6 +101,17 @@ class MainActivity : FlutterActivity() {
                 result.success(true)
             }
             "isMonitorRunning" -> result.success(BtMonitorService.running)
+            "getAutoConnect" -> result.success(AutoConnect.status())
+            "setAutoConnect" -> {
+                val on = call.argument<Boolean>("enabled") ?: false
+                AutoConnect.setEnabled(on)
+                if (on) AutoConnectService.start(this) else AutoConnectService.stop(this)
+                result.success(AutoConnect.status())
+            }
+            "autoConnectNow" -> {
+                AutoConnect.startWindow("prova manuale", AutoConnect.WINDOW_MANUAL_MS, manual = true)
+                result.success(true)
+            }
             "getEvents" -> result.success(EventStore.all())
             "clearEvents" -> {
                 EventStore.clear()

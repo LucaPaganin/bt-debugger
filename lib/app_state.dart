@@ -24,6 +24,7 @@ class AppState extends ChangeNotifier {
 
   bool get scanning => classicScanning || leScanning;
   bool monitorRunning = false;
+  AutoStatus auto = const AutoStatus();
   String? targetAddress;
   String? targetName;
   Map<String, bool> permissions = {};
@@ -40,6 +41,13 @@ class AppState extends ChangeNotifier {
     targetAddress = t.address;
     targetName = t.name;
     monitorRunning = await BtApi.isMonitorRunning();
+    await refreshAuto();
+    // Se la funzione è accesa ma Android ha fermato il servizio, lo riavvia.
+    if (auto.enabled && !auto.serviceRunning) {
+      try {
+        auto = await BtApi.setAutoConnect(true);
+      } catch (_) {}
+    }
     try {
       known = decodeKnown(await BtApi.getKnownDevices());
     } catch (_) {}
@@ -53,7 +61,28 @@ class AppState extends ChangeNotifier {
       permissions = await BtApi.checkPermissions();
       monitorRunning = await BtApi.isMonitorRunning();
     } catch (_) {}
+    await refreshAuto();
     await reloadEvents();
+  }
+
+  Future<void> refreshAuto() async {
+    try {
+      auto = await BtApi.getAutoConnect();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> toggleAuto() async {
+    auto = await BtApi.setAutoConnect(!auto.enabled);
+    notifyListeners();
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await refreshAuto();
+  }
+
+  Future<void> autoConnectNow() async {
+    await BtApi.autoConnectNow();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await refreshAuto();
   }
 
   Future<void> refreshPermissions() async {
@@ -95,6 +124,7 @@ class AppState extends ChangeNotifier {
     events.add(e);
     if (e.action == 'MONITOR_START') monitorRunning = true;
     if (e.action == 'MONITOR_STOP' || e.action == 'MONITOR_ERROR') monitorRunning = false;
+    if (e.cat == 'auto') refreshAuto();
     notifyListeners();
   }
 
